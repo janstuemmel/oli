@@ -9,12 +9,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 
 	"golang.org/x/term"
 )
-
-const apiURL = "https://openrouter.ai/api/v1/chat/completions"
 
 type sseChunk struct {
 	Choices []struct {
@@ -24,7 +23,49 @@ type sseChunk struct {
 	} `json:"choices"`
 }
 
-func streamPrompt(prompt, model, apiKey string, out io.Writer) error {
+type outputWriter struct {
+	write func(string) error
+	end   func() error
+}
+
+func createOutputWriter() (*outputWriter, error) {
+	filter := strings.TrimSpace(os.Getenv("OPENROUTER_STREAM_FILTER"))
+	if filter == "" {
+		return &outputWriter{
+			write: func(s string) error {
+				_, err := io.WriteString(os.Stdout, s)
+				return err
+			},
+			end: func() error { return nil },
+		}, nil
+	}
+
+	cmd := exec.Command("sh", "-c", filter)
+	cmd.Stdin = nil
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	return &outputWriter{
+		write: func(s string) error {
+			_, err := io.WriteString(stdin, s)
+			return err
+		},
+		end: func() error {
+			_ = stdin.Close()
+			return cmd.Wait()
+		},
+	}, nil
+}
+
+func streamPrompt(prompt, model, apiKey string, out *outputWriter) error {
 	payload := map[string]interface{}{
 		"model":  model,
 		"stream": true,
@@ -37,7 +78,7 @@ func streamPrompt(prompt, model, apiKey string, out io.Writer) error {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", "https://openrouter.ai/api/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -82,7 +123,7 @@ func streamPrompt(prompt, model, apiKey string, out io.Writer) error {
 		}
 		delta := chunk.Choices[0].Delta.Content
 		if delta != "" {
-			if _, err := io.WriteString(out, delta); err != nil {
+			if err := out.write(delta); err != nil {
 				return err
 			}
 		}
@@ -99,7 +140,7 @@ func readAllStdin() (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
-func main() {
+func example() {
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
 		fmt.Fprintln(os.Stderr, "Missing OPENROUTER_API_KEY env var.")
@@ -120,11 +161,20 @@ func main() {
 			fmt.Fprintln(os.Stderr, "No prompt provided.")
 			os.Exit(1)
 		}
-		if err := streamPrompt(prompt, model, apiKey, os.Stdout); err != nil {
+		out, err := createOutputWriter()
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		fmt.Fprintln(os.Stdout)
+		if err := streamPrompt(prompt, model, apiKey, out); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		_ = out.write("\n")
+		if err := out.end(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -146,10 +196,19 @@ func main() {
 		if prompt == "/exit" || prompt == "/quit" {
 			break
 		}
-		if err := streamPrompt(prompt, model, apiKey, os.Stdout); err != nil {
+		out, err := createOutputWriter()
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		fmt.Fprintln(os.Stdout)
+		if err := streamPrompt(prompt, model, apiKey, out); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		_ = out.write("\n")
+		if err := out.end(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 }

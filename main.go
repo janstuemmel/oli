@@ -1,95 +1,91 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
 	"io"
-	"math"
+	"mdgo/internal"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 
-	"github.com/charmbracelet/glamour"
+	"golang.org/x/term"
 )
 
-func clearAltScreen() {
-	os.Stdout.WriteString("\033[H\033[2J")
+const apiURL = "https://openrouter.ai/api/v1/chat/completions"
+
+type Payload struct {
+	Model  string `json:"model"`
+	Stream bool   `json:"stream"`
 }
 
-func enterAltScreen() {
-	os.Stdout.WriteString("\033[?1049h")
-}
-
-func leaveAltScreen() {
-	os.Stdout.WriteString("\033[?1049l")
-}
-
-func threshold(bufLen int) int {
-	switch {
-	case bufLen < 2_000:
-		return 32
-	case bufLen < 10_000:
-		return 128
-	case bufLen < 50_000:
-		return 512
-	default:
-		return 1024
-	}
-}
-
-func clamp(x, min, max int) int {
-	if x < min {
-		return min
-	}
-	if x > max {
-		return max
-	}
-	return x
-}
-
-func adaptiveThreshold(bufLen int) int {
-	t := 32 + int(math.Sqrt(float64(bufLen)))
-	return clamp(t, 32, 16*1024)
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 func main() {
-	renderer, _ := glamour.NewTermRenderer(
-		glamour.WithWordWrap(80),
-		glamour.WithAutoStyle(),
-		// glamour.WithEmoji(),
-		glamour.WithEnvironmentConfig(),
+	fmt.Println(term.IsTerminal(int(os.Stdin.Fd())))
+
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
 	)
+	defer stop()
 
-	enterAltScreen()
-	// clearAltScreen()
-
-	var buf bytes.Buffer
-	var out []byte
-	var lastBufLen int
-	tmp := make([]byte, 4096)
-
-	for {
-		n, err := os.Stdin.Read(tmp)
-		if n > 0 {
-			buf.Write(tmp[:n])
-			delta := adaptiveThreshold(buf.Len())
-
-			if buf.Len()-lastBufLen >= delta || lastBufLen == 0 {
-				clearAltScreen()
-				out, _ = renderer.RenderBytes(buf.Bytes())
-
-				os.Stdout.Write(out)
-				lastBufLen = buf.Len()
-			}
-		}
-
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			break
-		}
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	if apiKey == "" {
+		fmt.Fprintln(os.Stderr, "Missing OPENROUTER_API_KEY")
+		os.Exit(1)
 	}
 
-	leaveAltScreen()
-	clearAltScreen()
-	os.Stdout.Write(out)
+	client := internal.NewOpenRouterClient(ctx, apiKey)
+
+	go func() {
+		messages := []Message{}
+		reader := bufio.NewReader(os.Stdin)
+
+		for {
+			fmt.Fprint(os.Stdout, "> ")
+			line, err := reader.ReadString('\n')
+
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+
+			prompt := strings.TrimSpace(line)
+
+			if prompt == "" {
+				continue
+			}
+
+			answer := ""
+			messages = append(messages, Message{Role: "user", Content: prompt})
+			payload := map[string]any{
+				"model":    "openai/gpt-5",
+				"stream":   true,
+				"messages": messages,
+			}
+
+			err = client.HandleRequest(payload, func(chunk string) {
+				s, _, _ := internal.HandleOpenRouterChunk(chunk)
+				fmt.Print(s)
+				answer += s
+			})
+
+			messages = append(messages, Message{Role: "assistant", Content: answer})
+			fmt.Println()
+			fmt.Println()
+		}
+	}()
+
+	<-ctx.Done()
 }
