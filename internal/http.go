@@ -11,6 +11,17 @@ import (
 
 const url = "https://openrouter.ai/api/v1/chat/completions"
 
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type Payload struct {
+	Model    string    `json:"model"`
+	Stream   bool      `json:"stream"`
+	Messages []Message `json:"messages"`
+}
+
 type OpenRouterClient struct {
 	apiKey string
 	client *http.Client
@@ -25,8 +36,12 @@ func NewOpenRouterClient(ctx context.Context, apiKey string) *OpenRouterClient {
 	}
 }
 
-func (h *OpenRouterClient) HandleRequest(body map[string]any, handle func(chunk string)) error {
-	reqBody, err := json.Marshal(body)
+func (h *OpenRouterClient) HandleRequest(messages []Message, handle func(chunk string)) error {
+	reqBody, err := json.Marshal(Payload{
+		Model:    "google/gemini-2.5-flash",
+		Stream:   true,
+		Messages: messages,
+	})
 
 	if err != nil {
 		return err

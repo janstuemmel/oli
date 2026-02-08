@@ -15,20 +15,8 @@ import (
 	"golang.org/x/term"
 )
 
-const apiURL = "https://openrouter.ai/api/v1/chat/completions"
-
-type Payload struct {
-	Model  string `json:"model"`
-	Stream bool   `json:"stream"`
-}
-
-type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
 func chatLoop(client *internal.OpenRouterClient) {
-	messages := []Message{}
+	messages := []internal.Message{}
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -50,23 +38,29 @@ func chatLoop(client *internal.OpenRouterClient) {
 		}
 
 		answer := ""
-		messages = append(messages, Message{Role: "user", Content: prompt})
-		payload := map[string]any{
-			"model":    "openai/gpt-5",
-			"stream":   true,
-			"messages": messages,
-		}
+		messages = append(messages, internal.Message{Role: "user", Content: prompt})
 
-		client.HandleRequest(payload, func(chunk string) {
+		client.HandleRequest(messages, func(chunk string) {
 			s, _, _ := internal.HandleOpenRouterChunk(chunk)
 			fmt.Print(s)
 			answer += s
 		})
 
-		messages = append(messages, Message{Role: "assistant", Content: answer})
+		messages = append(messages, internal.Message{Role: "assistant", Content: answer})
 		fmt.Println()
 		fmt.Println()
 	}
+}
+
+func singleShot(client *internal.OpenRouterClient, stdin []byte) {
+	prompt := strings.TrimSpace(string(stdin))
+
+	client.HandleRequest([]internal.Message{{Role: "user", Content: prompt}}, func(chunk string) {
+		s, _, _ := internal.HandleOpenRouterChunk(chunk)
+		fmt.Print(s)
+	})
+
+	fmt.Println()
 }
 
 func main() {
@@ -90,25 +84,14 @@ func main() {
 		if isTty {
 			chatLoop(client)
 		} else {
-			in, err := io.ReadAll(os.Stdin)
+			stdin, err := io.ReadAll(os.Stdin)
 
 			if err != nil {
-				return
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
 			}
 
-			prompt := strings.TrimSpace(string(in))
-			payload := map[string]any{
-				"model":    "openai/gpt-5",
-				"stream":   true,
-				"messages": []Message{{Role: "user", Content: prompt}},
-			}
-
-			client.HandleRequest(payload, func(chunk string) {
-				s, _, _ := internal.HandleOpenRouterChunk(chunk)
-				fmt.Print(s)
-			})
-
-			fmt.Println()
+			singleShot(client, stdin)
 		}
 
 		// exit routine
