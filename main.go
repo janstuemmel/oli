@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mdgo/internal"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
+	"github.com/janstuemmel/oli/internal"
 	"golang.org/x/term"
 )
 
@@ -39,28 +39,29 @@ func chatLoop(client *internal.OpenRouterClient) {
 
 		answer := ""
 		messages = append(messages, internal.Message{Role: "user", Content: prompt})
+		out := internal.NewStdinPipe()
 
 		client.HandleRequest(messages, func(chunk string) {
 			s, _, _ := internal.HandleOpenRouterChunk(chunk)
-			fmt.Print(s)
+			out.Write(s)
 			answer += s
 		})
 
+		out.End()
 		messages = append(messages, internal.Message{Role: "assistant", Content: answer})
-		fmt.Println()
-		fmt.Println()
 	}
 }
 
 func singleShot(client *internal.OpenRouterClient, stdin []byte) {
 	prompt := strings.TrimSpace(string(stdin))
+	out := internal.NewStdinPipe()
 
 	client.HandleRequest([]internal.Message{{Role: "user", Content: prompt}}, func(chunk string) {
 		s, _, _ := internal.HandleOpenRouterChunk(chunk)
-		fmt.Print(s)
+		out.Write(s)
 	})
 
-	fmt.Println()
+	out.End()
 }
 
 func main() {
