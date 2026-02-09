@@ -21,8 +21,8 @@ type StdinPipe struct {
 	stdin io.WriteCloser
 }
 
-func NewStdinPipe() *StdinPipe {
-	filter := strings.TrimSpace(os.Getenv("OLI_PIPE"))
+func NewStdinPipe(config *Config) *StdinPipe {
+	filter := strings.TrimSpace(config.Pipe)
 	stdin := NopWriteCloser(os.Stdout)
 	var cmd *exec.Cmd
 

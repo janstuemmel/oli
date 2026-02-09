@@ -9,8 +9,15 @@ import (
 	"strings"
 )
 
-func ChatLoop(client *OpenRouterClient) {
-	messages := []Message{}
+func getInitialMessages(system string) []Message {
+	if system != "" {
+		return []Message{{Role: "system", Content: system}}
+	}
+	return []Message{}
+}
+
+func ChatLoop(client *OpenRouterClient, config *Config) {
+	messages := getInitialMessages("")
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -33,7 +40,7 @@ func ChatLoop(client *OpenRouterClient) {
 
 		answer := ""
 		messages = append(messages, Message{Role: "user", Content: prompt})
-		out := NewStdinPipe()
+		out := NewStdinPipe(config)
 
 		client.HandleRequest(messages, func(chunk string) {
 			s, _, _ := HandleOpenRouterChunk(chunk)
@@ -46,14 +53,14 @@ func ChatLoop(client *OpenRouterClient) {
 	}
 }
 
-func SingleShot(client *OpenRouterClient, stdin []byte) {
+func SingleShot(client *OpenRouterClient, config *Config, stdin []byte) {
 	prompt := strings.TrimSpace(string(stdin))
-	out := NewStdinPipe()
-
-	client.HandleRequest([]Message{{Role: "user", Content: prompt}}, func(chunk string) {
+	messages := getInitialMessages(config.System)
+	messages = append(messages, Message{Role: "user", Content: prompt})
+	out := NewStdinPipe(config)
+	client.HandleRequest(messages, func(chunk string) {
 		s, _, _ := HandleOpenRouterChunk(chunk)
 		out.Write(s)
 	})
-
 	out.End()
 }

@@ -24,16 +24,14 @@ type Payload struct {
 }
 
 type OpenRouterClient struct {
-	apiKey string
-	model  string
+	config *Config
 	client *http.Client
 	ctx    context.Context
 }
 
-func NewOpenRouterClient(ctx context.Context, apiKey string, model string) *OpenRouterClient {
+func NewOpenRouterClient(ctx context.Context, config *Config) *OpenRouterClient {
 	return &OpenRouterClient{
-		apiKey: apiKey,
-		model:  model,
+		config: config,
 		client: http.DefaultClient,
 		ctx:    ctx,
 	}
@@ -41,7 +39,7 @@ func NewOpenRouterClient(ctx context.Context, apiKey string, model string) *Open
 
 func (h *OpenRouterClient) HandleRequest(messages []Message, handle func(chunk string)) error {
 	reqBody, err := json.Marshal(Payload{
-		Model:    h.model,
+		Model:    h.config.Model,
 		Stream:   true,
 		Messages: messages,
 	})
@@ -56,7 +54,7 @@ func (h *OpenRouterClient) HandleRequest(messages []Message, handle func(chunk s
 		return err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.apiKey))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.config.Apikey))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 	resp, err := h.client.Do(req)

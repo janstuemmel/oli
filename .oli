@@ -1,0 +1,17 @@
+# select a default model
+model: google/gemini-2.5-flash
+
+# pipe ai output through external program
+pipe: cat
+
+# add a system prompt
+system: |
+  you are a helpful assistant running on a linux terminal
+  i am a programmer who has technical knowledge
+  dont print too much markdown, keep your answers short and concise
+
+# TODO roles
+# roles:
+#   - name: default
+#     model: google/gemini-2.5-flash
+#     system: be concise
