@@ -18,7 +18,7 @@ type Message struct {
 }
 
 type Plugin = struct {
-	Id string `json:"Id"`
+	Id string `json:"id"`
 }
 
 type Payload struct {
