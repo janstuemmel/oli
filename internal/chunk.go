@@ -21,8 +21,9 @@ type Usage struct {
 }
 
 type Chunk struct {
-	Choices []Choice `json:"choices"`
-	Usage   *Usage   `json:"usage"`
+	Choices   []Choice `json:"choices"`
+	Usage     *Usage   `json:"usage"`
+	Citations []string `json:"citations"`
 }
 
 func trim(data string) string {

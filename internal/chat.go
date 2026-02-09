@@ -58,9 +58,23 @@ func SingleShot(client *OpenRouterClient, config *Config, stdin []byte) {
 	messages := getInitialMessages(config.System)
 	messages = append(messages, Message{Role: "user", Content: prompt})
 	out := NewStdinPipe(config)
+
+	// TODO: handle citations in chunk handler
+	var cit []string
 	client.HandleRequest(messages, func(chunk string) {
-		s, _, _ := HandleOpenRouterChunk(chunk)
+		s, d, _ := HandleOpenRouterChunk(chunk)
+		if d != nil && len(d.Citations) > 0 {
+			cit = d.Citations
+		}
 		out.Write(s)
 	})
+
+	if len(cit) > 0 {
+		out.Write("\n\n")
+		out.Write("Links:")
+		out.Write("\n\n")
+		out.Write(strings.Join(cit, "\n"))
+	}
+
 	out.End()
 }
