@@ -71,7 +71,7 @@ func main() {
 			&cli.StringArgs{
 				Name:      "prompt",
 				UsageText: "your prompt",
-				Min:       1,
+				Min:       0,
 				Max:       -1,
 			},
 		},
