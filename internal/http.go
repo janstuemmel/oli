@@ -24,13 +24,15 @@ type Payload struct {
 
 type OpenRouterClient struct {
 	apiKey string
+	model  string
 	client *http.Client
 	ctx    context.Context
 }
 
-func NewOpenRouterClient(ctx context.Context, apiKey string) *OpenRouterClient {
+func NewOpenRouterClient(ctx context.Context, apiKey string, model string) *OpenRouterClient {
 	return &OpenRouterClient{
 		apiKey: apiKey,
+		model:  model,
 		client: http.DefaultClient,
 		ctx:    ctx,
 	}
@@ -38,7 +40,7 @@ func NewOpenRouterClient(ctx context.Context, apiKey string) *OpenRouterClient {
 
 func (h *OpenRouterClient) HandleRequest(messages []Message, handle func(chunk string)) error {
 	reqBody, err := json.Marshal(Payload{
-		Model:    "google/gemini-2.5-flash",
+		Model:    h.model,
 		Stream:   true,
 		Messages: messages,
 	})
