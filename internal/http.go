@@ -17,10 +17,15 @@ type Message struct {
 	Content string `json:"content"`
 }
 
+type Plugin = struct {
+	Id string `json:"Id"`
+}
+
 type Payload struct {
 	Model    string    `json:"model"`
 	Stream   bool      `json:"stream"`
 	Messages []Message `json:"messages"`
+	Plugins  []Plugin  `json:"plugins"`
 }
 
 type OpenRouterClient struct {
@@ -38,10 +43,16 @@ func NewOpenRouterClient(ctx context.Context, config *Config) *OpenRouterClient 
 }
 
 func (h *OpenRouterClient) HandleRequest(messages []Message, handle func(chunk string)) error {
+	plugins := []Plugin{}
+	if h.config.Online {
+		plugins = append(plugins, Plugin{Id: "web"})
+	}
+
 	reqBody, err := json.Marshal(Payload{
 		Model:    h.config.Model,
 		Stream:   true,
 		Messages: messages,
+		Plugins:  plugins,
 	})
 
 	if err != nil {

@@ -29,6 +29,7 @@ func trim(data string) string {
 	return strings.TrimSpace(strings.TrimPrefix(data, "data:"))
 }
 
+// TODO: should also handle web search annotations: https://openrouter.ai/docs/guides/features/plugins/web-search
 func HandleOpenRouterChunk(chunk string) (string, *Chunk, error) {
 	var data *Chunk
 
