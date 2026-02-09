@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 )
 
 const url = "https://openrouter.ai/api/v1/chat/completions"
@@ -59,6 +60,11 @@ func (h *OpenRouterClient) HandleRequest(messages []Message, handle func(chunk s
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 	resp, err := h.client.Do(req)
+
+	if resp.StatusCode != 200 {
+		fmt.Fprintf(os.Stderr, "Client returned with: %s\n", resp.Status)
+		os.Exit(1)
+	}
 
 	if err != nil {
 		return err
