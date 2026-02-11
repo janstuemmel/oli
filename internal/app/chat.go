@@ -17,7 +17,7 @@ func getInitialMessages(system string) []Message {
 }
 
 func ChatLoop(client *OpenRouterClient, config *Config) {
-	messages := getInitialMessages("")
+	messages := getInitialMessages(config.System)
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
