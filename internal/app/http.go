@@ -17,7 +17,7 @@ type Message struct {
 	Content string `json:"content"`
 }
 
-type Plugin = struct {
+type Plugin struct {
 	Id string `json:"id"`
 }
 
