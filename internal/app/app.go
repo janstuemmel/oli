@@ -17,6 +17,7 @@ func Run(config *Config) func(cmd *cobra.Command, args []string) {
 	return func(cmd *cobra.Command, args []string) {
 
 		isTty := term.IsTerminal(int(os.Stdin.Fd()))
+
 		ctx, stop := signal.NotifyContext(
 			context.Background(),
 			os.Interrupt,
@@ -47,7 +48,5 @@ func Run(config *Config) func(cmd *cobra.Command, args []string) {
 		}()
 
 		<-ctx.Done()
-
 	}
-
 }
