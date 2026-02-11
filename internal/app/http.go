@@ -70,13 +70,13 @@ func (h *OpenRouterClient) HandleRequest(messages []Message, handle func(chunk s
 	req.Header.Set("Accept", "text/event-stream")
 	resp, err := h.client.Do(req)
 
+	if err != nil {
+		return err
+	}
+
 	if resp.StatusCode != 200 {
 		fmt.Fprintf(os.Stderr, "Client returned with: %s\n", resp.Status)
 		os.Exit(1)
-	}
-
-	if err != nil {
-		return err
 	}
 
 	defer resp.Body.Close()
