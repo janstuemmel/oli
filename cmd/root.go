@@ -7,7 +7,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/janstuemmel/oli/internal"
+	"github.com/janstuemmel/oli/internal/app"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -39,11 +39,11 @@ type modelJson struct {
 var modelsFile string
 
 var (
-	config  internal.Config
+	config  app.Config
 	rootCmd = &cobra.Command{
 		Use:   "oli",
 		Short: "openrouter cli",
-		Run:   internal.Run(&config),
+		Run:   app.Run(&config),
 		Args:  cobra.MinimumNArgs(0),
 	}
 )

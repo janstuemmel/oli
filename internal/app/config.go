@@ -1,4 +1,4 @@
-package internal
+package app
 
 type ConfigRoles struct {
 	Name   string `mapstructure:"name"`
